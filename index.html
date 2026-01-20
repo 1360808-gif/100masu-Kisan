@@ -242,6 +242,9 @@ td{
   position:relative;
   width:56px;
   height:46px;
+  display:flex;              /* ★中央寄せ用 */
+  align-items:center;        /* ★上下中央 */
+  justify-content:center;    /* ★左右中央 */
 }
 .cell input{
   width:100%;
@@ -252,6 +255,11 @@ td{
   font-size:16px;
   font-weight:1000;
   background:transparent;
+
+  /* ★上下中央の“見た目”をさらに安定させる */
+  padding:0;
+  line-height:46px;          /* ★セル高さと同じ */
+  display:block;
 }
 .cell.ok{ background:#ecfdf5; }
 .cell.ok input{ color:#065f46; }
@@ -517,7 +525,6 @@ function focusByIndex(index){
 function handleKeyNav(e){
   const key = e.key;
 
-  // Enter：次/前（Shiftで前）
   if(key === "Enter"){
     e.preventDefault();
     const inputs = getInputs();
@@ -527,12 +534,8 @@ function handleKeyNav(e){
     return;
   }
 
-  // 矢印：上下左右（wrap）
   if(key !== "ArrowLeft" && key !== "ArrowRight" && key !== "ArrowUp" && key !== "ArrowDown") return;
 
-  // 入力中の左右移動（カーソル移動）を優先したい場合があるので、
-  // 「入力が空」または「カーソルが端」のときだけ移動、にしてもいいが
-  // 今回は要望どおり常に移動させる
   e.preventDefault();
 
   const cell = e.target.closest(".cell");
@@ -606,7 +609,6 @@ function render(){
         maybeStopTimerIfAllCorrect();
       });
 
-      // ★ Enter & 矢印で移動
       inp.addEventListener("keydown", handleKeyNav);
 
       td.appendChild(cell);
