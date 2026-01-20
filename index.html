@@ -12,6 +12,8 @@
   --line:#e5e7eb;
   --accent:#4f46e5;
   --shadow:0 10px 24px rgba(0,0,0,.08);
+
+  --mark: rgba(239,68,68,0.78); /* 赤い丸 */
 }
 *{ box-sizing:border-box; }
 
@@ -48,7 +50,7 @@ body{
   box-shadow:var(--shadow);
 }
 
-/* ===== 右カラム：7行レイアウト ===== */
+/* ===== 右カラム ===== */
 .rightStack{
   display:flex;
   flex-direction:column;
@@ -238,13 +240,14 @@ td{
   background:#fff;
 }
 
+/* ★ マス（中央寄せ） */
 .cell{
   position:relative;
   width:56px;
   height:46px;
-  display:flex;              /* ★中央寄せ用 */
-  align-items:center;        /* ★上下中央 */
-  justify-content:center;    /* ★左右中央 */
+  display:flex;
+  align-items:center;
+  justify-content:center;
 }
 .cell input{
   width:100%;
@@ -255,16 +258,51 @@ td{
   font-size:16px;
   font-weight:1000;
   background:transparent;
-
-  /* ★上下中央の“見た目”をさらに安定させる */
   padding:0;
-  line-height:46px;          /* ★セル高さと同じ */
+  line-height:46px;
   display:block;
 }
-.cell.ok{ background:#ecfdf5; }
-.cell.ok input{ color:#065f46; }
+
+/* 未正解でこたえあわせ → まちがい色 */
 .cell.bad{ background:#fff7ed; }
 .cell.bad input{ color:#9a3412; }
+
+/* ===== 正解の色 ===== */
+/* 1発正解（◎） */
+.cell.firstOk{ background:#ecfdf5; }     /* うす緑 */
+.cell.firstOk input{ color:#065f46; }
+
+/* 2回目以降正解（〇） */
+.cell.lateOk{ background:#eef2ff; }      /* ★ 色を変える（うす紫） */
+.cell.lateOk input{ color:#1e3a8a; }
+
+/* ===== 丸表示 ===== */
+/* 二重丸（◎） */
+.cell.firstOk::before,
+.cell.firstOk::after{
+  content:"";
+  position:absolute;
+  border-radius:50%;
+  pointer-events:none;
+}
+.cell.firstOk::before{
+  inset:7px;
+  border:3px solid var(--mark);
+}
+.cell.firstOk::after{
+  inset:13px;
+  border:3px solid var(--mark);
+}
+
+/* 丸（〇） */
+.cell.lateOk::after{
+  content:"";
+  position:absolute;
+  inset:9px;
+  border:3px solid var(--mark);
+  border-radius:50%;
+  pointer-events:none;
+}
 
 /* 半角注意 */
 .hankakuWarn{
@@ -306,7 +344,7 @@ td{
       <div class="score" id="score">点数：— / 100</div>
     </div>
 
-    <!-- 右カラム：指定の7行 -->
+    <!-- 右カラム -->
     <div class="card">
       <div class="rightStack">
 
@@ -357,6 +395,7 @@ td{
           <div style="width:100%;">
             <div class="errBar" id="errBar">エラー：</div>
             <div class="note" style="margin-top:10px;">
+              ・こたえあわせで、1発正解は◎、2回目以降正解は〇（色も変化）<br>
               ・Enterで次のマス、Shift+Enterで前のマス<br>
               ・←→↑↓で上下左右に移動（端は回り込み）<br>
               ・81ますぜんぶ正解で自動ストップ
@@ -486,6 +525,10 @@ let topNums = [];
 let leftNums = [];
 let answers = [];
 
+/* ★ こたえあわせ回数管理（マスごと） */
+let wrongChecks = [];   // 間違えた状態で「こたえあわせ」を押された回数（空欄は数えない）
+let solved = [];        // そのマスが一度でも正解になったか
+
 function makeNums(mode){
   if(mode === "up") return ASC.slice();
   if(mode === "down") return DESC.slice();
@@ -605,7 +648,8 @@ function render(){
         }
         e.target.value = after;
 
-        cell.classList.remove("ok","bad");
+        /* 入力したら色だけ一旦リセット（丸は消さない：丸は正解後固定） */
+        cell.classList.remove("bad");
         maybeStopTimerIfAllCorrect();
       });
 
@@ -646,28 +690,54 @@ function maybeStopTimerIfAllCorrect(){
 /* ===== こたえあわせ ===== */
 function check(){
   const cells = document.querySelectorAll(".cell");
-  let ok = 0;
+  let okCount = 0;
 
   for(const cell of cells){
     const r = Number(cell.dataset.r);
     const c = Number(cell.dataset.c);
+    const idx = r*SIZE + c;
+
     const inp = cell.querySelector("input");
-    const v = Number(inp.value);
+    const raw = inp.value.trim();
+    const v = Number(raw);
 
-    cell.classList.remove("ok","bad");
+    const correct = (Number.isFinite(v) && v === answers[r][c]);
 
-    if(v === answers[r][c]){
-      cell.classList.add("ok");
-      ok++;
+    /* すでに正解済みのマスは、丸/色を固定（判定だけ数える） */
+    if(solved[idx]){
+      okCount++;
+      continue;
+    }
+
+    /* 未正解マス：まず見た目を初期化（ただし firstOk/lateOk は後で付く） */
+    cell.classList.remove("bad","firstOk","lateOk");
+
+    if(correct){
+      // 初めてこのマスが正解になった瞬間に、◎/〇を確定
+      solved[idx] = true;
+
+      if(wrongChecks[idx] === 0){
+        // 1発正解 → 二重丸
+        cell.classList.add("firstOk");
+      }else{
+        // 2回目以降で正解 → 丸 + 色変更
+        cell.classList.add("lateOk");
+      }
+      okCount++;
     }else{
-      if(inp.value.trim() !== ""){
+      // 間違い：空欄はカウントしない
+      if(raw !== ""){
+        wrongChecks[idx]++;
+
+        // 間違い色
         cell.classList.add("bad");
       }
     }
   }
 
-  const score = Math.round((ok / (SIZE*SIZE)) * 100);
+  const score = Math.round((okCount / (SIZE*SIZE)) * 100);
   document.getElementById("score").textContent = `点数：${score} / 100`;
+
   maybeStopTimerIfAllCorrect();
 }
 
@@ -676,6 +746,11 @@ function make(mode){
   topNums = makeNums(mode);
   leftNums = makeNums(mode);
   buildAnswers();
+
+  // ★ 管理配列をリセット
+  wrongChecks = Array(SIZE*SIZE).fill(0);
+  solved = Array(SIZE*SIZE).fill(false);
+
   render();
 
   timerReset();
