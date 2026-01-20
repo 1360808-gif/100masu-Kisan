@@ -131,9 +131,9 @@ button:active{ transform: translateY(1px); }
   width:100%;
 }
 .makeBtns button{
-  flex:1;                 /* 三分の一 */
-  width:auto;             /* 上の width:100% を上書き */
-  padding:8px 6px;        /* 小さめ */
+  flex:1;
+  width:auto;          /* 上の width:100% を上書き */
+  padding:8px 6px;
   font-size:14px;
   white-space:nowrap;
 }
@@ -368,6 +368,7 @@ th.corner{
           <div class="bestBox" aria-live="polite" title="ベストタイム（この端末に保存）">
             <button id="clearBestBtn" class="bestClearBtn" type="button" title="ベストをけす">🗑</button>
             <span class="label">🏆 ベスト</span>
+            <span class="label" id="bestModeLabel">（—）</span>
             <span class="value" id="bestText">—</span>
             <span class="label">びょう</span>
           </div>
@@ -395,7 +396,7 @@ th.corner{
           </label>
         </div>
 
-        <!-- ★6行目：作成ボタン（1行） -->
+        <!-- 6行目：作成ボタン -->
         <div class="row">
           <div class="makeBtns">
             <button id="makeUpBtn">上がり</button>
@@ -408,6 +409,7 @@ th.corner{
           <div style="width:100%;">
             <div class="errBar" id="errBar">エラー：</div>
             <div class="note" style="margin-top:10px;">
+              ・ベストは「上がり / 下がり / バラバラ」で別々に保存<br>
               ・こたえあわせで、1発正解は◎、2回目以降正解は〇（色も変化）<br>
               ・Enterで次のマス、Shift+Enterで前のマス<br>
               ・←→↑↓で上下左右に移動（端は回り込み）<br>
@@ -454,34 +456,63 @@ let timingEnabled = true;
 const timingToggle = document.getElementById("timingToggle");
 const timerInline = document.getElementById("timerInline");
 
-/* ===== ベスト（localStorage） ===== */
-const BEST_KEY = "hyakumasu_kuku_9x9_best_sec_v1";
-const bestText = document.getElementById("bestText");
+/* ===== ベスト（3種類） ===== */
+const BEST_KEYS = {
+  up:   "hyakumasu_kuku_9x9_best_up_v1",
+  down: "hyakumasu_kuku_9x9_best_down_v1",
+  rand: "hyakumasu_kuku_9x9_best_rand_v1",
+};
+const LAST_MODE_KEY = "hyakumasu_kuku_9x9_last_mode_v1";
 
-function loadBest(){
-  const v = localStorage.getItem(BEST_KEY);
+const bestText = document.getElementById("bestText");
+const bestModeLabel = document.getElementById("bestModeLabel");
+
+let currentMode = (localStorage.getItem(LAST_MODE_KEY) || "up");
+if(currentMode !== "up" && currentMode !== "down" && currentMode !== "rand"){
+  currentMode = "up";
+}
+
+function modeName(mode){
+  if(mode === "up") return "上がり";
+  if(mode === "down") return "下がり";
+  return "バラバラ";
+}
+
+function loadBest(mode){
+  const key = BEST_KEYS[mode] || BEST_KEYS.up;
+  const v = localStorage.getItem(key);
   if(!v) return null;
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
 }
 function showBest(){
-  const best = loadBest();
+  bestModeLabel.textContent = `（${modeName(currentMode)}）`;
+  const best = loadBest(currentMode);
   bestText.textContent = (best==null) ? "—" : best.toFixed(1);
 }
 function tryUpdateBest(sec){
-  const best = loadBest();
+  const key = BEST_KEYS[currentMode] || BEST_KEYS.up;
+  const best = loadBest(currentMode);
   if(best==null || sec < best){
-    localStorage.setItem(BEST_KEY, String(sec));
+    localStorage.setItem(key, String(sec));
     showBest();
   }
 }
 function clearBest(){
-  if(confirm("ベストタイムをけしますか？")){
-    try{ localStorage.removeItem(BEST_KEY); }catch(e){}
+  if(confirm(`「${modeName(currentMode)}」のベストタイムをけしますか？`)){
+    try{
+      localStorage.removeItem(BEST_KEYS[currentMode] || BEST_KEYS.up);
+    }catch(e){}
     showBest();
   }
 }
 document.getElementById("clearBestBtn").addEventListener("click", clearBest);
+
+function setMode(mode){
+  currentMode = mode;
+  try{ localStorage.setItem(LAST_MODE_KEY, mode); }catch(e){}
+  showBest();
+}
 
 /* ===== タイマー ===== */
 let tStart = null;
@@ -524,6 +555,7 @@ function timerStop(){
   timerHint.textContent = "🎉 おわり！もういちど は作成ボタン";
   if(tTick){ clearInterval(tTick); tTick = null; }
 
+  // ★ 現在モードのベストを更新
   tryUpdateBest(sec);
 }
 function setTimingUI(){
@@ -539,8 +571,8 @@ let leftNums = [];
 let answers = [];
 
 /* こたえあわせ回数管理 */
-let wrongChecks = [];   // 空欄は数えない
-let solved = [];        // そのマスが一度でも正解になったか
+let wrongChecks = [];
+let solved = [];
 
 function makeNums(mode){
   if(mode === "up") return ASC.slice();
@@ -746,6 +778,8 @@ function check(){
 
 /* ===== 問題作成 ===== */
 function make(mode){
+  setMode(mode); // ★ここでモード切り替え＆ベスト表示切替
+
   topNums = makeNums(mode);
   leftNums = makeNums(mode);
   buildAnswers();
