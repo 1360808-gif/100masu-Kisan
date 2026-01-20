@@ -115,7 +115,7 @@ button.primary{
 }
 button:active{ transform: translateY(1px); }
 
-/* 3つの作成ボタンを縦に */
+/* 3つの作成ボタン */
 .makeBtns{
   display:flex;
   flex-direction:column;
@@ -302,12 +302,10 @@ td{
     <div class="card">
       <div class="rightStack">
 
-        <!-- 1行目：タイトル -->
         <div class="row rowTitle">
           <h1 class="titleText">九九の81ます計算（9×9）</h1>
         </div>
 
-        <!-- 2行目：ベスト（と消す） -->
         <div class="row">
           <div class="bestBox" aria-live="polite" title="ベストタイム（この端末に保存）">
             <button id="clearBestBtn" class="bestClearBtn" type="button" title="ベストをけす">🗑</button>
@@ -317,12 +315,10 @@ td{
           </div>
         </div>
 
-        <!-- 3行目：こたえあわせ -->
         <div class="row">
           <button class="primary" id="checkBtn">こたえあわせ</button>
         </div>
 
-        <!-- 4行目：タイム -->
         <div class="row" id="timerInline">
           <div class="timer" id="timerBox" aria-live="polite">
             <div class="left">
@@ -334,7 +330,6 @@ td{
           </div>
         </div>
 
-        <!-- 5行目：タイムを測るかどうか -->
         <div class="row">
           <label class="switch" title="タイムを計測する/しない">
             <input type="checkbox" id="timingToggle" checked>
@@ -342,7 +337,6 @@ td{
           </label>
         </div>
 
-        <!-- 6行目：問題を作る（3ボタン） -->
         <div class="row">
           <div class="makeBtns">
             <button id="makeUpBtn">上がり（1→9）</button>
@@ -351,13 +345,12 @@ td{
           </div>
         </div>
 
-        <!-- 7行目：それ以外 -->
         <div class="row left">
           <div style="width:100%;">
             <div class="errBar" id="errBar">エラー：</div>
             <div class="note" style="margin-top:10px;">
               ・Enterで次のマス、Shift+Enterで前のマス<br>
-              ・作成するとタイム開始（タイムONのとき）<br>
+              ・←→↑↓で上下左右に移動（端は回り込み）<br>
               ・81ますぜんぶ正解で自動ストップ
             </div>
           </div>
@@ -488,10 +481,8 @@ let answers = [];
 function makeNums(mode){
   if(mode === "up") return ASC.slice();
   if(mode === "down") return DESC.slice();
-  // random
   return shuffle(ASC.slice());
 }
-
 function buildAnswers(){
   const out = Array.from({length:SIZE}, ()=>Array(SIZE).fill(0));
   for(let r=0;r<SIZE;r++){
@@ -502,24 +493,59 @@ function buildAnswers(){
   answers = out;
 }
 
-/* ===== Enter移動：次/前 ===== */
+/* ===== フォーカス移動 ===== */
+function getInputs(){
+  return Array.from(document.querySelectorAll(".masuInput"));
+}
+function focusByRC(r, c){
+  const rr = ((r % SIZE) + SIZE) % SIZE;
+  const cc = ((c % SIZE) + SIZE) % SIZE;
+  const inp = document.querySelector(`.cell[data-r="${rr}"][data-c="${cc}"] .masuInput`);
+  if(!inp) return;
+  inp.focus();
+  inp.select?.();
+}
 function focusByIndex(index){
-  const inputs = Array.from(document.querySelectorAll(".masuInput"));
+  const inputs = getInputs();
   if(inputs.length === 0) return;
-  const i = ((index % inputs.length) + inputs.length) % inputs.length; // wrap
+  const i = ((index % inputs.length) + inputs.length) % inputs.length;
   inputs[i].focus();
   inputs[i].select?.();
 }
-function handleEnterMove(e){
-  if(e.key !== "Enter") return;
+
+/* ===== キー操作：Enterと矢印 ===== */
+function handleKeyNav(e){
+  const key = e.key;
+
+  // Enter：次/前（Shiftで前）
+  if(key === "Enter"){
+    e.preventDefault();
+    const inputs = getInputs();
+    const idx = inputs.indexOf(e.target);
+    if(idx < 0) return;
+    focusByIndex(idx + (e.shiftKey ? -1 : 1));
+    return;
+  }
+
+  // 矢印：上下左右（wrap）
+  if(key !== "ArrowLeft" && key !== "ArrowRight" && key !== "ArrowUp" && key !== "ArrowDown") return;
+
+  // 入力中の左右移動（カーソル移動）を優先したい場合があるので、
+  // 「入力が空」または「カーソルが端」のときだけ移動、にしてもいいが
+  // 今回は要望どおり常に移動させる
   e.preventDefault();
 
-  const inputs = Array.from(document.querySelectorAll(".masuInput"));
-  const idx = inputs.indexOf(e.target);
-  if(idx < 0) return;
+  const cell = e.target.closest(".cell");
+  if(!cell) return;
+  let r = Number(cell.dataset.r);
+  let c = Number(cell.dataset.c);
 
-  const delta = e.shiftKey ? -1 : 1;
-  focusByIndex(idx + delta);
+  if(key === "ArrowLeft")  c--;
+  if(key === "ArrowRight") c++;
+  if(key === "ArrowUp")    r--;
+  if(key === "ArrowDown")  r++;
+
+  focusByRC(r, c);
 }
 
 /* ===== 描画 ===== */
@@ -580,7 +606,8 @@ function render(){
         maybeStopTimerIfAllCorrect();
       });
 
-      inp.addEventListener("keydown", handleEnterMove);
+      // ★ Enter & 矢印で移動
+      inp.addEventListener("keydown", handleKeyNav);
 
       td.appendChild(cell);
       tr.appendChild(td);
@@ -591,7 +618,7 @@ function render(){
   wrap.appendChild(table);
   document.getElementById("score").textContent = "点数：— / 100";
 
-  setTimeout(()=> focusByIndex(0), 0);
+  setTimeout(()=> focusByRC(0,0), 0);
 }
 
 /* ===== 全問正解判定 ===== */
@@ -642,10 +669,10 @@ function check(){
   maybeStopTimerIfAllCorrect();
 }
 
-/* ===== 問題作成（モード別） ===== */
+/* ===== 問題作成 ===== */
 function make(mode){
   topNums = makeNums(mode);
-  leftNums = makeNums(mode);     // ★ 指示どおり同じ並び方
+  leftNums = makeNums(mode);
   buildAnswers();
   render();
 
@@ -657,7 +684,6 @@ function make(mode){
 document.getElementById("makeUpBtn").addEventListener("click", ()=>make("up"));
 document.getElementById("makeDownBtn").addEventListener("click", ()=>make("down"));
 document.getElementById("makeRandBtn").addEventListener("click", ()=>make("rand"));
-
 document.getElementById("checkBtn").addEventListener("click", check);
 
 /* ===== 初期化 ===== */
