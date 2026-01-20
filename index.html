@@ -12,8 +12,7 @@
   --line:#e5e7eb;
   --accent:#4f46e5;
   --shadow:0 10px 24px rgba(0,0,0,.08);
-
-  --mark: rgba(239,68,68,0.78); /* 赤い丸 */
+  --mark: rgba(239,68,68,0.78);
 }
 *{ box-sizing:border-box; }
 
@@ -202,12 +201,12 @@ button:active{ transform: translateY(1px); }
   background:#fff;
 }
 
-/* 表 */
+/* ===== 表（★右端の“余白”対策） ===== */
 table{
   border-collapse:separate;
   border-spacing:0;
-  width:max-content;
-  min-width:100%;
+  width:100%;            /* ★ max-content をやめる */
+  max-width:100%;
 }
 th, td{
   border-right:1px solid var(--line);
@@ -216,6 +215,9 @@ th, td{
 }
 tr:first-child th{ border-top:1px solid var(--line); }
 th:first-child, td:first-child{ border-left:1px solid var(--line); }
+
+/* ★ 右端の線を消して“余った列っぽさ”を消す */
+th:last-child, td:last-child{ border-right:none; }
 
 th{
   background:#f8fafc;
@@ -240,7 +242,7 @@ td{
   background:#fff;
 }
 
-/* ★ マス（中央寄せ） */
+/* マス（中央寄せ） */
 .cell{
   position:relative;
   width:56px;
@@ -263,20 +265,18 @@ td{
   display:block;
 }
 
-/* 未正解でこたえあわせ → まちがい色 */
+/* まちがい色 */
 .cell.bad{ background:#fff7ed; }
 .cell.bad input{ color:#9a3412; }
 
-/* ===== 正解の色 ===== */
 /* 1発正解（◎） */
-.cell.firstOk{ background:#ecfdf5; }     /* うす緑 */
+.cell.firstOk{ background:#ecfdf5; }
 .cell.firstOk input{ color:#065f46; }
 
 /* 2回目以降正解（〇） */
-.cell.lateOk{ background:#eef2ff; }      /* ★ 色を変える（うす紫） */
+.cell.lateOk{ background:#eef2ff; }
 .cell.lateOk input{ color:#1e3a8a; }
 
-/* ===== 丸表示 ===== */
 /* 二重丸（◎） */
 .cell.firstOk::before,
 .cell.firstOk::after{
@@ -285,14 +285,8 @@ td{
   border-radius:50%;
   pointer-events:none;
 }
-.cell.firstOk::before{
-  inset:7px;
-  border:3px solid var(--mark);
-}
-.cell.firstOk::after{
-  inset:13px;
-  border:3px solid var(--mark);
-}
+.cell.firstOk::before{ inset:7px; border:3px solid var(--mark); }
+.cell.firstOk::after { inset:13px; border:3px solid var(--mark); }
 
 /* 丸（〇） */
 .cell.lateOk::after{
@@ -525,9 +519,8 @@ let topNums = [];
 let leftNums = [];
 let answers = [];
 
-/* ★ こたえあわせ回数管理（マスごと） */
-let wrongChecks = [];   // 間違えた状態で「こたえあわせ」を押された回数（空欄は数えない）
-let solved = [];        // そのマスが一度でも正解になったか
+let wrongChecks = [];
+let solved = [];
 
 function makeNums(mode){
   if(mode === "up") return ASC.slice();
@@ -564,7 +557,7 @@ function focusByIndex(index){
   inputs[i].select?.();
 }
 
-/* ===== キー操作：Enterと矢印 ===== */
+/* ===== キー操作 ===== */
 function handleKeyNav(e){
   const key = e.key;
 
@@ -648,7 +641,6 @@ function render(){
         }
         e.target.value = after;
 
-        /* 入力したら色だけ一旦リセット（丸は消さない：丸は正解後固定） */
         cell.classList.remove("bad");
         maybeStopTimerIfAllCorrect();
       });
@@ -703,33 +695,24 @@ function check(){
 
     const correct = (Number.isFinite(v) && v === answers[r][c]);
 
-    /* すでに正解済みのマスは、丸/色を固定（判定だけ数える） */
     if(solved[idx]){
       okCount++;
       continue;
     }
 
-    /* 未正解マス：まず見た目を初期化（ただし firstOk/lateOk は後で付く） */
     cell.classList.remove("bad","firstOk","lateOk");
 
     if(correct){
-      // 初めてこのマスが正解になった瞬間に、◎/〇を確定
       solved[idx] = true;
-
       if(wrongChecks[idx] === 0){
-        // 1発正解 → 二重丸
         cell.classList.add("firstOk");
       }else{
-        // 2回目以降で正解 → 丸 + 色変更
         cell.classList.add("lateOk");
       }
       okCount++;
     }else{
-      // 間違い：空欄はカウントしない
       if(raw !== ""){
         wrongChecks[idx]++;
-
-        // 間違い色
         cell.classList.add("bad");
       }
     }
@@ -737,7 +720,6 @@ function check(){
 
   const score = Math.round((okCount / (SIZE*SIZE)) * 100);
   document.getElementById("score").textContent = `点数：${score} / 100`;
-
   maybeStopTimerIfAllCorrect();
 }
 
@@ -747,7 +729,6 @@ function make(mode){
   leftNums = makeNums(mode);
   buildAnswers();
 
-  // ★ 管理配列をリセット
   wrongChecks = Array(SIZE*SIZE).fill(0);
   solved = Array(SIZE*SIZE).fill(false);
 
