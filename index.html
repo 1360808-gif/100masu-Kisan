@@ -13,6 +13,9 @@
   --accent:#4f46e5;
   --shadow:0 10px 24px rgba(0,0,0,.08);
   --mark: rgba(239,68,68,0.78);
+
+  --cellW:56px;
+  --cellH:46px;
 }
 *{ box-sizing:border-box; }
 
@@ -201,30 +204,30 @@ button:active{ transform: translateY(1px); }
   background:#fff;
 }
 
-/* ===== 表（★右端の“余白”対策） ===== */
+/* ===== 表（★隙間が出ない版） ===== */
 table{
   border-collapse:separate;
   border-spacing:0;
-  width:100%;            /* ★ max-content をやめる */
-  max-width:100%;
+  width:max-content;   /* ★ マス幅でテーブルを作る */
+  min-width:100%;      /* ★ 画面が広いときは左詰めで広がる */
 }
 th, td{
   border-right:1px solid var(--line);
   border-bottom:1px solid var(--line);
   padding:0;
+  width:var(--cellW);
+  height:var(--cellH);
 }
 tr:first-child th{ border-top:1px solid var(--line); }
 th:first-child, td:first-child{ border-left:1px solid var(--line); }
 
-/* ★ 右端の線を消して“余った列っぽさ”を消す */
+/* ★右端の線は消す（“余った列っぽさ”対策） */
 th:last-child, td:last-child{ border-right:none; }
 
 th{
   background:#f8fafc;
   font-weight:1000;
   text-align:center;
-  width:56px;
-  height:46px;
   position:sticky;
   z-index:2;
 }
@@ -236,17 +239,11 @@ th.corner{
   background:#eef2ff;
 }
 
-td{
-  width:56px;
-  height:46px;
-  background:#fff;
-}
-
-/* マス（中央寄せ） */
+/* ★マス：tdいっぱいに広げる（ここが隙間の根本解決） */
 .cell{
   position:relative;
-  width:56px;
-  height:46px;
+  width:100%;
+  height:100%;
   display:flex;
   align-items:center;
   justify-content:center;
@@ -261,7 +258,7 @@ td{
   font-weight:1000;
   background:transparent;
   padding:0;
-  line-height:46px;
+  line-height:var(--cellH);
   display:block;
 }
 
