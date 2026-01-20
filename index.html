@@ -17,7 +17,6 @@
   --cellW:56px;
   --cellH:46px;
 
-  /* ★ 正円サイズ */
   --circleOuter:30px;
   --circleInner:18px;
   --circleSingle:26px;
@@ -49,6 +48,34 @@ body{
   box-shadow:0 6px 12px rgba(0,0,0,.06);
 }
 .card{ border-radius:24px; box-shadow:var(--shadow); }
+
+/* ===== 共通ボタン ===== */
+button{
+  border-radius:12px;
+  border:1px solid var(--line);
+  background:#fff;
+  font-weight:900;
+  cursor:pointer;
+}
+button.primary{
+  background:var(--accent);
+  border-color:transparent;
+  color:#fff;
+}
+button:active{ transform: translateY(1px); }
+
+/* ===== 作成ボタン（★ここが変更点） ===== */
+.makeBtns{
+  display:flex;          /* ★ 横並び */
+  gap:8px;
+  width:100%;
+}
+.makeBtns button{
+  flex:1;                /* ★ 三分の一 */
+  padding:8px 6px;       /* ★ 少しコンパクトに */
+  font-size:14px;
+  white-space:nowrap;    /* ★ 折り返さない */
+}
 
 /* ===== 左：81ます ===== */
 .masuWrap{
@@ -104,14 +131,12 @@ th.corner{ top:0; left:0; z-index:3; background:#eef2ff; }
   line-height:var(--cellH);
 }
 
-/* 色 */
+/* 正解色 */
 .cell.bad{ background:#fff7ed; }
 .cell.firstOk{ background:#ecfdf5; }
 .cell.lateOk{ background:#eef2ff; }
 
-/* ===== 正円マーク ===== */
-
-/* 二重丸（◎） */
+/* 正円マーク */
 .cell.firstOk::before,
 .cell.firstOk::after{
   content:"";
@@ -132,8 +157,6 @@ th.corner{ top:0; left:0; z-index:3; background:#eef2ff; }
   height:var(--circleInner);
   border:3px solid var(--mark);
 }
-
-/* 丸（〇） */
 .cell.lateOk::after{
   content:"";
   position:absolute;
@@ -150,6 +173,31 @@ th.corner{ top:0; left:0; z-index:3; background:#eef2ff; }
 </head>
 
 <body>
-<!-- 以降のHTML / JSは前回と同一（省略せず使ってOK） -->
+<div class="wrap">
+  <div class="layout">
+
+    <!-- 左：百ます -->
+    <div class="panel">
+      <div class="masuWrap" id="masuWrap"></div>
+    </div>
+
+    <!-- 右カラム -->
+    <div class="card">
+      <h1 style="margin:0 0 10px;font-size:20px;font-weight:1000;">
+        九九の81ます計算（9×9）
+      </h1>
+
+      <!-- ★ 作成ボタン（1行・三分の一） -->
+      <div class="makeBtns">
+        <button id="makeUpBtn">上がり</button>
+        <button id="makeDownBtn">下がり</button>
+        <button id="makeRandBtn">バラバラ</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- JSは前回と同一 -->
 </body>
 </html>
