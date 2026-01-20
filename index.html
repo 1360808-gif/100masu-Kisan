@@ -64,9 +64,6 @@ body{
 .row.left{
   justify-content:flex-start;
 }
-.row.tight{
-  gap:8px;
-}
 .rowTitle{
   align-items:flex-start;
 }
@@ -194,7 +191,7 @@ button:active{ transform: translateY(1px); }
   display:none;
 }
 
-/* ===== 左：百ます ===== */
+/* ===== 左：81ます ===== */
 .masuWrap{
   overflow:auto;
   border:1px solid var(--line);
@@ -221,8 +218,8 @@ th{
   background:#f8fafc;
   font-weight:1000;
   text-align:center;
-  width:52px;
-  height:44px;
+  width:56px;
+  height:46px;
   position:sticky;
   z-index:2;
 }
@@ -235,15 +232,15 @@ th.corner{
 }
 
 td{
-  width:52px;
-  height:44px;
+  width:56px;
+  height:46px;
   background:#fff;
 }
 
 .cell{
   position:relative;
-  width:52px;
-  height:44px;
+  width:56px;
+  height:46px;
 }
 .cell input{
   width:100%;
@@ -292,10 +289,10 @@ td{
 
   <div class="layout">
 
-    <!-- 左カラム：百ます -->
+    <!-- 左カラム：81ます -->
     <div class="panel">
       <div class="masuWrap" id="masuWrap">
-        <div style="padding:12px;font-weight:900;color:#6b7280;">右の「もんだいをつくる」を押すと百ますが出ます。</div>
+        <div style="padding:12px;font-weight:900;color:#6b7280;">右の「もんだいをつくる」を押すと81ますが出ます。</div>
       </div>
       <div class="score" id="score">点数：— / 100</div>
     </div>
@@ -306,7 +303,7 @@ td{
 
         <!-- 1行目：タイトル -->
         <div class="row rowTitle">
-          <h1 class="titleText">九九の百ます計算（10×10）</h1>
+          <h1 class="titleText">九九の81ます計算（9×9）</h1>
         </div>
 
         <!-- 2行目：ベスト（と消す） -->
@@ -349,14 +346,14 @@ td{
           <button id="makeBtn">もんだいをつくる</button>
         </div>
 
-        <!-- 7行目：それ以外（説明/エラーなど） -->
+        <!-- 7行目：それ以外 -->
         <div class="row left">
           <div style="width:100%;">
             <div class="errBar" id="errBar">エラー：</div>
             <div class="note" style="margin-top:10px;">
+              ・たて・よこは 1〜9 が1回ずつ出ます（毎回シャッフル）<br>
               ・作成するとタイム開始（タイムONのとき）<br>
-              ・100ますぜんぶ正解で自動ストップ<br>
-              ・「こたえあわせ」で正誤に色がつきます
+              ・81ますぜんぶ正解で自動ストップ
             </div>
           </div>
         </div>
@@ -368,7 +365,7 @@ td{
 </div>
 
 <script>
-/* ===== 何も表示されない時用：エラーを画面に出す ===== */
+/* ===== エラー表示 ===== */
 (function(){
   const bar = document.getElementById("errBar");
   window.addEventListener("error", (e)=>{
@@ -381,14 +378,16 @@ td{
 function toHalfWidth(str){
   return String(str).replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
 }
-function randInt(min,max){
-  return Math.floor(Math.random()*(max-min+1))+min;
+function shuffle(arr){
+  for(let i=arr.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [arr[i],arr[j]] = [arr[j],arr[i]];
+  }
+  return arr;
 }
 
 /* ===== 設定 ===== */
-const SIZE = 10;
-const KUKU_MIN = 1;
-const KUKU_MAX = 9;
+const SIZE = 9;  // ★ 9×9 = 81ます
 
 /* ===== タイム計測 ON/OFF ===== */
 let timingEnabled = true;
@@ -396,7 +395,7 @@ const timingToggle = document.getElementById("timingToggle");
 const timerInline = document.getElementById("timerInline");
 
 /* ===== ベスト（localStorage） ===== */
-const BEST_KEY = "hyakumasu_kuku_best_sec_v1";
+const BEST_KEY = "hyakumasu_kuku_9x9_best_sec_v1";
 const bestText = document.getElementById("bestText");
 
 function loadBest(){
@@ -474,17 +473,13 @@ function setTimingUI(){
 }
 timingToggle.addEventListener("change", setTimingUI);
 
-/* ===== 百ますデータ ===== */
+/* ===== 81ますデータ ===== */
 let topNums = [];
 let leftNums = [];
 let answers = [];
 
-function makeHeaderNums(){
-  const a = [];
-  for(let i=0;i<SIZE;i++){
-    a.push(randInt(KUKU_MIN, KUKU_MAX));
-  }
-  return a;
+function makeNums1to9(){
+  return shuffle([1,2,3,4,5,6,7,8,9].slice());
 }
 function buildAnswers(){
   const out = Array.from({length:SIZE}, ()=>Array(SIZE).fill(0));
@@ -613,8 +608,8 @@ function check(){
 
 /* ===== 問題作成 ===== */
 function make(){
-  topNums = makeHeaderNums();
-  leftNums = makeHeaderNums();
+  topNums = makeNums1to9();
+  leftNums = makeNums1to9();
   buildAnswers();
   render();
 
