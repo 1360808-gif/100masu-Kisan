@@ -79,22 +79,35 @@ body{
   line-height:1.25;
 }
 
-/* ベスト */
-.bestBox{
-  display:inline-flex;
-  align-items:center;
-  justify-content:flex-start;
+/* ===== ベスト（3つ常時表示） ===== */
+.bestGroup{
+  display:flex;
+  flex-direction:column;
   gap:8px;
+  width:100%;
+}
+.bestBox{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
   padding:8px 12px;
   border-radius:14px;
   border:1px dashed rgba(79,70,229,.55);
   background:#fbfbff;
   font-weight:1000;
-  white-space:nowrap;
   width:100%;
 }
-.bestBox .label{ font-size:13px; opacity:.85; }
-.bestBox .value{ font-size:20px; letter-spacing:.4px; }
+.bestLeft{
+  display:flex;
+  align-items:baseline;
+  gap:8px;
+  white-space:nowrap;
+  min-width:0;
+}
+.bestLabel{ font-size:13px; opacity:.85; }
+.bestValue{ font-size:20px; letter-spacing:.4px; }
+
 .bestClearBtn{
   padding:6px 8px;
   border-radius:10px;
@@ -103,6 +116,7 @@ body{
   font-weight:900;
   cursor:pointer;
   line-height:1;
+  flex:0 0 auto;
 }
 .bestClearBtn:hover{ background:#fee2e2; }
 .bestClearBtn:active{ transform: translateY(1px); }
@@ -124,7 +138,7 @@ button.primary{
 }
 button:active{ transform: translateY(1px); }
 
-/* ★作成ボタン：1行・三分の一 */
+/* 作成ボタン：1行・三分の一 */
 .makeBtns{
   display:flex;
   gap:8px;
@@ -132,7 +146,7 @@ button:active{ transform: translateY(1px); }
 }
 .makeBtns button{
   flex:1;
-  width:auto;          /* 上の width:100% を上書き */
+  width:auto;
   padding:8px 6px;
   font-size:14px;
   white-space:nowrap;
@@ -364,13 +378,35 @@ th.corner{
           <h1 class="titleText">九九の81ます計算（9×9）</h1>
         </div>
 
+        <!-- ★2行目：ベスト3つを常に表示 -->
         <div class="row">
-          <div class="bestBox" aria-live="polite" title="ベストタイム（この端末に保存）">
-            <button id="clearBestBtn" class="bestClearBtn" type="button" title="ベストをけす">🗑</button>
-            <span class="label">🏆 ベスト</span>
-            <span class="label" id="bestModeLabel">（—）</span>
-            <span class="value" id="bestText">—</span>
-            <span class="label">びょう</span>
+          <div class="bestGroup" aria-live="polite" title="ベストタイム（この端末に保存）">
+            <div class="bestBox">
+              <div class="bestLeft">
+                <span class="bestLabel">🏆 ベスト（上がり）</span>
+                <span class="bestValue" id="bestUpText">—</span>
+                <span class="bestLabel">びょう</span>
+              </div>
+              <button class="bestClearBtn" id="clearBestUpBtn" type="button" title="上がりのベストをけす">🗑</button>
+            </div>
+
+            <div class="bestBox">
+              <div class="bestLeft">
+                <span class="bestLabel">🏆 ベスト（下がり）</span>
+                <span class="bestValue" id="bestDownText">—</span>
+                <span class="bestLabel">びょう</span>
+              </div>
+              <button class="bestClearBtn" id="clearBestDownBtn" type="button" title="下がりのベストをけす">🗑</button>
+            </div>
+
+            <div class="bestBox">
+              <div class="bestLeft">
+                <span class="bestLabel">🏆 ベスト（バラバラ）</span>
+                <span class="bestValue" id="bestRandText">—</span>
+                <span class="bestLabel">びょう</span>
+              </div>
+              <button class="bestClearBtn" id="clearBestRandBtn" type="button" title="バラバラのベストをけす">🗑</button>
+            </div>
           </div>
         </div>
 
@@ -396,7 +432,6 @@ th.corner{
           </label>
         </div>
 
-        <!-- 6行目：作成ボタン -->
         <div class="row">
           <div class="makeBtns">
             <button id="makeUpBtn">上がり</button>
@@ -409,7 +444,7 @@ th.corner{
           <div style="width:100%;">
             <div class="errBar" id="errBar">エラー：</div>
             <div class="note" style="margin-top:10px;">
-              ・ベストは「上がり / 下がり / バラバラ」で別々に保存<br>
+              ・ベストは「上がり / 下がり / バラバラ」3つを常に表示<br>
               ・こたえあわせで、1発正解は◎、2回目以降正解は〇（色も変化）<br>
               ・Enterで次のマス、Shift+Enterで前のマス<br>
               ・←→↑↓で上下左右に移動（端は回り込み）<br>
@@ -462,57 +497,44 @@ const BEST_KEYS = {
   down: "hyakumasu_kuku_9x9_best_down_v1",
   rand: "hyakumasu_kuku_9x9_best_rand_v1",
 };
-const LAST_MODE_KEY = "hyakumasu_kuku_9x9_last_mode_v1";
 
-const bestText = document.getElementById("bestText");
-const bestModeLabel = document.getElementById("bestModeLabel");
-
-let currentMode = (localStorage.getItem(LAST_MODE_KEY) || "up");
-if(currentMode !== "up" && currentMode !== "down" && currentMode !== "rand"){
-  currentMode = "up";
-}
-
-function modeName(mode){
-  if(mode === "up") return "上がり";
-  if(mode === "down") return "下がり";
-  return "バラバラ";
-}
+const bestUpText = document.getElementById("bestUpText");
+const bestDownText = document.getElementById("bestDownText");
+const bestRandText = document.getElementById("bestRandText");
 
 function loadBest(mode){
-  const key = BEST_KEYS[mode] || BEST_KEYS.up;
+  const key = BEST_KEYS[mode];
   const v = localStorage.getItem(key);
   if(!v) return null;
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
 }
-function showBest(){
-  bestModeLabel.textContent = `（${modeName(currentMode)}）`;
-  const best = loadBest(currentMode);
-  bestText.textContent = (best==null) ? "—" : best.toFixed(1);
+function setBestText(el, v){
+  el.textContent = (v==null) ? "—" : v.toFixed(1);
 }
-function tryUpdateBest(sec){
-  const key = BEST_KEYS[currentMode] || BEST_KEYS.up;
-  const best = loadBest(currentMode);
+function showAllBests(){
+  setBestText(bestUpText, loadBest("up"));
+  setBestText(bestDownText, loadBest("down"));
+  setBestText(bestRandText, loadBest("rand"));
+}
+function tryUpdateBest(mode, sec){
+  const best = loadBest(mode);
   if(best==null || sec < best){
-    localStorage.setItem(key, String(sec));
-    showBest();
+    localStorage.setItem(BEST_KEYS[mode], String(sec));
+    showAllBests();
   }
 }
-function clearBest(){
-  if(confirm(`「${modeName(currentMode)}」のベストタイムをけしますか？`)){
-    try{
-      localStorage.removeItem(BEST_KEYS[currentMode] || BEST_KEYS.up);
-    }catch(e){}
-    showBest();
+function clearBest(mode){
+  const name = (mode==="up"?"上がり":mode==="down"?"下がり":"バラバラ");
+  if(confirm(`「${name}」のベストタイムをけしますか？`)){
+    try{ localStorage.removeItem(BEST_KEYS[mode]); }catch(e){}
+    showAllBests();
   }
 }
-document.getElementById("clearBestBtn").addEventListener("click", clearBest);
 
-function setMode(mode){
-  currentMode = mode;
-  try{ localStorage.setItem(LAST_MODE_KEY, mode); }catch(e){}
-  showBest();
-}
+document.getElementById("clearBestUpBtn").addEventListener("click", ()=>clearBest("up"));
+document.getElementById("clearBestDownBtn").addEventListener("click", ()=>clearBest("down"));
+document.getElementById("clearBestRandBtn").addEventListener("click", ()=>clearBest("rand"));
 
 /* ===== タイマー ===== */
 let tStart = null;
@@ -522,6 +544,9 @@ let tTick = null;
 const timerBox = document.getElementById("timerBox");
 const timerText = document.getElementById("timerText");
 const timerHint = document.getElementById("timerHint");
+
+/* いまの出題モード */
+let currentMode = "up";
 
 function timerReset(){
   tStart = null;
@@ -555,8 +580,8 @@ function timerStop(){
   timerHint.textContent = "🎉 おわり！もういちど は作成ボタン";
   if(tTick){ clearInterval(tTick); tTick = null; }
 
-  // ★ 現在モードのベストを更新
-  tryUpdateBest(sec);
+  // ★その回のモードのベストだけ更新
+  tryUpdateBest(currentMode, sec);
 }
 function setTimingUI(){
   timingEnabled = timingToggle.checked;
@@ -778,7 +803,7 @@ function check(){
 
 /* ===== 問題作成 ===== */
 function make(mode){
-  setMode(mode); // ★ここでモード切り替え＆ベスト表示切替
+  currentMode = mode;
 
   topNums = makeNums(mode);
   leftNums = makeNums(mode);
@@ -800,7 +825,7 @@ document.getElementById("makeRandBtn").addEventListener("click", ()=>make("rand"
 document.getElementById("checkBtn").addEventListener("click", check);
 
 /* ===== 初期化 ===== */
-showBest();
+showAllBests();
 setTimingUI();
 </script>
 </body>
