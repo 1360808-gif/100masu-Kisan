@@ -23,15 +23,33 @@ body{
 }
 .wrap{ max-width:1200px; margin:16px auto; padding:0 12px 40px; }
 
-.top{
+/* ===== レイアウト：左=百ます / 右=上部UI ===== */
+.layout{
+  display:grid;
+  grid-template-columns: 1fr 380px; /* 左を広く、右を固定気味 */
+  gap:12px;
+  align-items:start;
+}
+@media(max-width:980px){
+  .layout{ grid-template-columns:1fr; }
+}
+
+.card{
   background:#fff;
   border:1px solid var(--line);
   border-radius:24px;
   padding:14px;
   box-shadow:var(--shadow);
 }
+.panel{
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:14px;
+  box-shadow:0 6px 12px rgba(0,0,0,.06);
+}
 
-/* ===== タイトル行（右にベスト） ===== */
+/* ===== タイトル行（右カード内） ===== */
 .titleRow{
   display:flex;
   align-items:center;
@@ -41,7 +59,7 @@ body{
 }
 .titleRow h1{
   margin:0;
-  font-size:22px;
+  font-size:20px;
   white-space:nowrap;
 }
 
@@ -71,7 +89,7 @@ body{
 .bestClearBtn:hover{ background:#fee2e2; }
 .bestClearBtn:active{ transform: translateY(1px); }
 
-/* ===== 上部：1行（ボタン類） ===== */
+/* ===== 右カードの操作行 ===== */
 .controlsRow{
   margin-top:10px;
   display:flex;
@@ -103,15 +121,6 @@ button.primary{
   color:#fff;
 }
 button:active{ transform: translateY(1px); }
-
-.panel{
-  margin-top:12px;
-  background:#fff;
-  border:1px solid var(--line);
-  border-radius:18px;
-  padding:14px;
-  box-shadow:0 6px 12px rgba(0,0,0,.06);
-}
 
 /* ===== タイム表示 ===== */
 .timerInline{
@@ -161,7 +170,19 @@ button:active{ transform: translateY(1px); }
 }
 .switch input{ accent-color: var(--accent); }
 
-/* ===== 百ます ===== */
+/* エラー表示 */
+.errBar{
+  margin-top:10px;
+  padding:10px 12px;
+  border-radius:12px;
+  border:1px solid #fecaca;
+  background:#fff1f2;
+  color:#991b1b;
+  font-weight:900;
+  display:none;
+}
+
+/* ===== 左：百ます ===== */
 .masuWrap{
   overflow:auto;
   border:1px solid var(--line);
@@ -169,6 +190,7 @@ button:active{ transform: translateY(1px); }
   background:#fff;
 }
 
+/* 表 */
 table{
   border-collapse:separate;
   border-spacing:0;
@@ -180,12 +202,9 @@ th, td{
   border-bottom:1px solid var(--line);
   padding:0;
 }
-tr:first-child th{
-  border-top:1px solid var(--line);
-}
-th:first-child, td:first-child{
-  border-left:1px solid var(--line);
-}
+tr:first-child th{ border-top:1px solid var(--line); }
+th:first-child, td:first-child{ border-left:1px solid var(--line); }
+
 th{
   background:#f8fafc;
   font-weight:1000;
@@ -195,13 +214,8 @@ th{
   position:sticky;
   z-index:2;
 }
-th.top{
-  top:0;
-}
-th.left{
-  left:0;
-  z-index:3;
-}
+th.top{ top:0; }
+th.left{ left:0; z-index:3; }
 th.corner{
   top:0; left:0;
   z-index:4;
@@ -229,20 +243,12 @@ td{
   font-weight:1000;
   background:transparent;
 }
-.cell.ok{
-  background:#ecfdf5;
-}
-.cell.ok input{
-  color:#065f46;
-}
-.cell.bad{
-  background:#fff7ed;
-}
-.cell.bad input{
-  color:#9a3412;
-}
+.cell.ok{ background:#ecfdf5; }
+.cell.ok input{ color:#065f46; }
+.cell.bad{ background:#fff7ed; }
+.cell.bad input{ color:#9a3412; }
 
-/* 半角注意（必要なら出す） */
+/* 半角注意 */
 .hankakuWarn{
   position:absolute;
   top:-26px;
@@ -266,69 +272,68 @@ td{
   font-weight:1000;
   font-size:18px;
 }
-
-/* エラー表示（何も出ない時用） */
-.errBar{
-  margin-top:10px;
-  padding:10px 12px;
-  border-radius:12px;
-  border:1px solid #fecaca;
-  background:#fff1f2;
-  color:#991b1b;
-  font-weight:900;
-  display:none;
-}
 </style>
 </head>
 
 <body>
 <div class="wrap">
 
-  <div class="top">
-    <div class="titleRow">
-      <h1>九九の百ます計算（10×10）</h1>
+  <div class="layout">
 
-      <div class="bestBox" id="bestInline" aria-live="polite" title="ベストタイム（この端末に保存）">
-        <button id="clearBestBtn" class="bestClearBtn" type="button" title="ベストをけす">🗑</button>
-        <span class="label">🏆 ベスト</span>
-        <span class="value" id="bestText">—</span>
-        <span class="label">びょう</span>
+    <!-- 左カラム：百ます -->
+    <div class="panel">
+      <div class="masuWrap" id="masuWrap">
+        <div style="padding:12px;font-weight:900;color:#6b7280;">右の「もんだいをつくる」を押すと百ますが出ます。</div>
       </div>
+      <div class="score" id="score">点数：— / 100</div>
     </div>
 
-    <div class="controlsRow">
-      <div class="controlsLeft">
-        <button class="primary" id="checkBtn">こたえあわせ</button>
-      </div>
+    <!-- 右カラム：タイトル・ベスト・タイム・ボタン -->
+    <div class="card">
+      <div class="titleRow">
+        <h1>九九の百ます計算（10×10）</h1>
 
-      <div class="timerInline" id="timerInline">
-        <div class="timer" id="timerBox" aria-live="polite">
-          <span class="label">⏱ タイム</span>
-          <span class="value" id="timerText">0.0</span>
+        <div class="bestBox" id="bestInline" aria-live="polite" title="ベストタイム（この端末に保存）">
+          <button id="clearBestBtn" class="bestClearBtn" type="button" title="ベストをけす">🗑</button>
+          <span class="label">🏆 ベスト</span>
+          <span class="value" id="bestText">—</span>
           <span class="label">びょう</span>
         </div>
-        <div class="hint" id="timerHint">「もんだいをつくる」でスタート</div>
       </div>
 
-      <div class="controlsRight">
-        <label class="switch" title="タイムを計測する/しない">
-          <input type="checkbox" id="timingToggle" checked>
-          タイム
-        </label>
-        <button id="makeBtn">もんだいをつくる</button>
+      <div class="controlsRow">
+        <div class="controlsLeft">
+          <button class="primary" id="checkBtn">こたえあわせ</button>
+        </div>
+
+        <div class="timerInline" id="timerInline">
+          <div class="timer" id="timerBox" aria-live="polite">
+            <span class="label">⏱ タイム</span>
+            <span class="value" id="timerText">0.0</span>
+            <span class="label">びょう</span>
+          </div>
+          <div class="hint" id="timerHint">「もんだいをつくる」でスタート</div>
+        </div>
+
+        <div class="controlsRight">
+          <label class="switch" title="タイムを計測する/しない">
+            <input type="checkbox" id="timingToggle" checked>
+            タイム
+          </label>
+          <button id="makeBtn">もんだいをつくる</button>
+        </div>
+      </div>
+
+      <div class="errBar" id="errBar">エラー：</div>
+
+      <div style="margin-top:12px; color:#6b7280; font-weight:900; font-size:13px; line-height:1.5;">
+        ・右のボタンで作成 → タイム開始<br>
+        ・100ますぜんぶ正解で自動ストップ（タイムONのとき）<br>
+        ・「こたえあわせ」で正誤に色がつくよ
       </div>
     </div>
 
-    <div class="errBar" id="errBar">エラー：</div>
   </div>
-
-  <div class="panel">
-    <div class="masuWrap" id="masuWrap">
-      <div style="padding:12px;font-weight:900;color:#6b7280;">「もんだいをつくる」を押すと百ますが出ます。</div>
-    </div>
-    <div class="score" id="score">点数：— / 100</div>
-  </div>
-
 </div>
 
 <script>
@@ -344,13 +349,6 @@ td{
 
 function toHalfWidth(str){
   return String(str).replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
-}
-function shuffle(arr){
-  for(let i=arr.length-1;i>0;i--){
-    const j = Math.floor(Math.random()*(i+1));
-    [arr[i],arr[j]] = [arr[j],arr[i]];
-  }
-  return arr;
 }
 function randInt(min,max){
   return Math.floor(Math.random()*(max-min+1))+min;
@@ -451,7 +449,6 @@ let leftNums = [];
 let answers = []; // 10x10
 
 function makeHeaderNums(){
-  // 1〜9からランダムに10個（重複あり）
   const a = [];
   for(let i=0;i<SIZE;i++){
     a.push(randInt(KUKU_MIN, KUKU_MAX));
@@ -524,9 +521,7 @@ function render(){
         }
         e.target.value = after;
 
-        // 入力中の見た目リセット
         cell.classList.remove("ok","bad");
-
         maybeStopTimerIfAllCorrect();
       });
 
@@ -537,8 +532,6 @@ function render(){
   }
 
   wrap.appendChild(table);
-
-  // スコア表示リセット
   document.getElementById("score").textContent = "点数：— / 100";
 }
 
@@ -556,7 +549,6 @@ function allCorrect(){
   }
   return true;
 }
-
 function maybeStopTimerIfAllCorrect(){
   if(!timingEnabled) return;
   if(tStart==null || tStop!=null) return;
@@ -571,7 +563,8 @@ function check(){
   for(const cell of cells){
     const r = Number(cell.dataset.r);
     const c = Number(cell.dataset.c);
-    const v = Number(cell.querySelector("input").value);
+    const inp = cell.querySelector("input");
+    const v = Number(inp.value);
 
     cell.classList.remove("ok","bad");
 
@@ -579,8 +572,7 @@ function check(){
       cell.classList.add("ok");
       ok++;
     }else{
-      // 空欄は色を付けない（好みで bad にしてもOK）
-      if(cell.querySelector("input").value.trim() !== ""){
+      if(inp.value.trim() !== ""){
         cell.classList.add("bad");
       }
     }
@@ -588,7 +580,6 @@ function check(){
 
   const score = Math.round((ok / (SIZE*SIZE)) * 100);
   document.getElementById("score").textContent = `点数：${score} / 100`;
-
   maybeStopTimerIfAllCorrect();
 }
 
