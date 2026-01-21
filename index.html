@@ -454,6 +454,7 @@ th.corner{
           <div style="width:100%;">
             <div class="errBar" id="errBar">エラー：</div>
             <div class="note" style="margin-top:10px;">
+              ・入力したら自動で次のマスへ（正解の桁数ぶん入力されたら移動）<br>
               ・こたえあわせで、1発正解は◎、2回目以降正解は〇（色も変化）<br>
               ・Enterで次のマス、Shift+Enterで前のマス<br>
               ・←→↑↓で上下左右に移動（端は回り込み）<br>
@@ -584,7 +585,6 @@ function timerStop(){
   timerHint.textContent = "🎉 おわり！もういちど は作成ボタン";
   if(tTick){ clearInterval(tTick); tTick = null; }
 
-  // その回のモードのベストだけ更新
   tryUpdateBest(currentMode, sec);
 }
 function setTimingUI(){
@@ -600,8 +600,8 @@ let leftNums = [];
 let answers = [];
 
 /* こたえあわせ回数管理 */
-let wrongChecks = [];   // 空欄は数えない
-let solved = [];        // そのマスが一度でも正解になったか
+let wrongChecks = [];
+let solved = [];
 
 /* 今のモード（ベスト更新に使う） */
 let currentMode = "up";
@@ -639,6 +639,32 @@ function focusByIndex(index){
   const i = ((index % inputs.length) + inputs.length) % inputs.length;
   inputs[i].focus();
   inputs[i].select?.();
+}
+
+/* ★ 入力したら次へ（正解の桁数ぶん入ったら移動） */
+function maybeAutoAdvanceByExpectedLen(inp){
+  const cell = inp.closest(".cell");
+  if(!cell) return;
+
+  // まだ問題が作られてない時は何もしない
+  if(document.querySelectorAll(".cell").length !== SIZE*SIZE) return;
+  if(!answers || answers.length !== SIZE) return;
+
+  const r = Number(cell.dataset.r);
+  const c = Number(cell.dataset.c);
+  if(!Number.isFinite(r) || !Number.isFinite(c)) return;
+
+  const expected = answers[r]?.[c];
+  if(!Number.isFinite(expected)) return;
+
+  const needLen = String(expected).length;        // 1桁 or 2桁
+  const nowLen = inp.value.trim().length;
+
+  if(nowLen >= needLen){
+    const inputs = getInputs();
+    const idx = inputs.indexOf(inp);
+    if(idx >= 0) focusByIndex(idx + 1);
+  }
 }
 
 /* ===== キー操作：Enter & 矢印 ===== */
@@ -726,8 +752,11 @@ function render(){
         }
         e.target.value = after;
 
-        // 入力し直したら見た目の「間違い」だけ外す（正解マークは維持）
+        // 入力し直したら見た目の「間違い」だけ外す
         cell.classList.remove("bad");
+
+        // ★ここで自動次マス
+        maybeAutoAdvanceByExpectedLen(inp);
 
         maybeStopTimerIfAllCorrect();
       });
