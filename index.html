@@ -173,7 +173,7 @@ button:active{ transform: translateY(1px); }
   gap:8px;
 }
 .timer .label{ font-size:13px; opacity:.85; white-space:nowrap; }
-.timer .value{ font-size:22px; letter-spacing:.5px; }
+.timer .value{ font-size:22px; letter-spacing:.2px; }
 .timer.running{
   border-color: rgba(79,70,229,.45);
   box-shadow: 0 0 0 3px rgba(79,70,229,.12);
@@ -454,6 +454,7 @@ th.corner{
           <div style="width:100%;">
             <div class="errBar" id="errBar">エラー：</div>
             <div class="note" style="margin-top:10px;">
+              ・60秒を超えたら「○分○秒」で表示<br>
               ・入力したら自動で次のマスへ（正解の桁数ぶん入力されたら移動）<br>
               ・こたえあわせで、1発正解は◎、2回目以降正解は〇（色も変化）<br>
               ・Enterで次のマス、Shift+Enterで前のマス<br>
@@ -491,6 +492,16 @@ function shuffle(arr){
   return arr;
 }
 
+/* ★ 60秒以上は「○分○秒」表示 */
+function fmtTime(sec){
+  if(!Number.isFinite(sec)) return "—";
+  if(sec < 60) return sec.toFixed(1);
+  const m = Math.floor(sec / 60);
+  const s = sec - m*60;
+  const ss = s.toFixed(1).padStart(4, "0"); // 2.3 -> "02.3"
+  return `${m}分 ${ss}`;
+}
+
 /* ===== 設定 ===== */
 const SIZE = 9;
 const ASC = [1,2,3,4,5,6,7,8,9];
@@ -519,7 +530,7 @@ function loadBest(mode){
   return Number.isFinite(n) ? n : null;
 }
 function setBestText(el, v){
-  el.textContent = (v==null) ? "—" : v.toFixed(1);
+  el.textContent = (v==null) ? "—" : fmtTime(v);
 }
 function showAllBests(){
   setBestText(bestUpText, loadBest("up"));
@@ -570,7 +581,8 @@ function timerStart(){
   if(tTick) clearInterval(tTick);
   tTick = setInterval(()=>{
     if(tStart==null || tStop!=null) return;
-    timerText.textContent = ((performance.now() - tStart) / 1000).toFixed(1);
+    const sec = (performance.now() - tStart)/1000;
+    timerText.textContent = fmtTime(sec);
   }, 100);
 }
 function timerStop(){
@@ -580,7 +592,7 @@ function timerStop(){
   tStop = performance.now();
   const sec = (tStop - tStart) / 1000;
 
-  timerText.textContent = sec.toFixed(1);
+  timerText.textContent = fmtTime(sec);
   timerBox.classList.remove("running");
   timerHint.textContent = "🎉 おわり！もういちど は作成ボタン";
   if(tTick){ clearInterval(tTick); tTick = null; }
@@ -641,23 +653,19 @@ function focusByIndex(index){
   inputs[i].select?.();
 }
 
-/* ★ 入力したら次へ（正解の桁数ぶん入ったら移動） */
+/* 入力したら次へ（正解の桁数ぶん入ったら移動） */
 function maybeAutoAdvanceByExpectedLen(inp){
   const cell = inp.closest(".cell");
   if(!cell) return;
-
-  // まだ問題が作られてない時は何もしない
   if(document.querySelectorAll(".cell").length !== SIZE*SIZE) return;
   if(!answers || answers.length !== SIZE) return;
 
   const r = Number(cell.dataset.r);
   const c = Number(cell.dataset.c);
-  if(!Number.isFinite(r) || !Number.isFinite(c)) return;
-
   const expected = answers[r]?.[c];
   if(!Number.isFinite(expected)) return;
 
-  const needLen = String(expected).length;        // 1桁 or 2桁
+  const needLen = String(expected).length; // 1桁 or 2桁
   const nowLen = inp.value.trim().length;
 
   if(nowLen >= needLen){
@@ -752,12 +760,8 @@ function render(){
         }
         e.target.value = after;
 
-        // 入力し直したら見た目の「間違い」だけ外す
         cell.classList.remove("bad");
-
-        // ★ここで自動次マス
         maybeAutoAdvanceByExpectedLen(inp);
-
         maybeStopTimerIfAllCorrect();
       });
 
