@@ -57,6 +57,37 @@ body{
   box-shadow:var(--shadow);
 }
 
+/* ===== 左上：こたえを見るボタン行 ===== */
+.leftTopRow{
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  gap:10px;
+  margin-bottom:10px;
+}
+.leftTopRow .leftHint{
+  font-weight:900;
+  color:#6b7280;
+  font-size:13px;
+}
+
+/* 左上ボタン（小さめ） */
+.peekBtn{
+  width:auto;
+  padding:8px 10px;
+  border-radius:12px;
+  border:1px solid var(--line);
+  background:#fff;
+  font-weight:1000;
+  cursor:pointer;
+  line-height:1;
+  user-select:none;
+  -webkit-user-select:none;
+  touch-action:manipulation;
+}
+.peekBtn:active{ transform: translateY(1px); }
+.peekBtn span{ display:inline-block; font-size:13px; }
+
 /* ===== 右カラム：7行 ===== */
 .rightStack{
   display:flex;
@@ -297,6 +328,14 @@ th.corner{
 .cell.lateOk{ background:#eef2ff; }
 .cell.lateOk input{ color:#1e3a8a; }
 
+/* ★ こたえ表示中 */
+.cell.revealing{
+  background:#f8fafc;
+}
+.cell.revealing input{
+  color:#111827;
+}
+
 /* ◎（正円） */
 .cell.firstOk::before,
 .cell.firstOk::after{
@@ -366,6 +405,15 @@ th.corner{
 
     <!-- 左カラム：81ます -->
     <div class="panel">
+
+      <!-- ★ここ：問題の左上に「こたえを見る」 -->
+      <div class="leftTopRow">
+        <button id="peekBtn" class="peekBtn" type="button" title="カーソルがあるマスだけ こたえを表示（押している間だけ）">
+          <span>こたえを見る</span>
+        </button>
+        <div class="leftHint">※ いまのマスだけ（押している間）</div>
+      </div>
+
       <div class="masuWrap" id="masuWrap">
         <div style="padding:12px;font-weight:900;color:#6b7280;">右の「上がり / 下がり / バラバラ」で 81ます を作れます。</div>
       </div>
@@ -454,9 +502,10 @@ th.corner{
           <div style="width:100%;">
             <div class="errBar" id="errBar">エラー：</div>
             <div class="note" style="margin-top:10px;">
-              ・60秒を超えたら「○分○秒」で表示<br>
+              ・60秒を超えたら「○分 ○秒」で表示<br>
               ・入力したら自動で次のマスへ（正解の桁数ぶん入力されたら移動）<br>
               ・こたえあわせで、1発正解は◎、2回目以降正解は〇（色も変化）<br>
+              ・「こたえを見る」を使ったマスは ◎にならず 〇あつかい<br>
               ・Enterで次のマス、Shift+Enterで前のマス<br>
               ・←→↑↓で上下左右に移動（端は回り込み）<br>
               ・81ますぜんぶ正解で自動ストップ（タイムONのとき）
@@ -614,9 +663,13 @@ let answers = [];
 /* こたえあわせ回数管理 */
 let wrongChecks = [];
 let solved = [];
+let usedPeek = [];   // ★「こたえを見る」使用フラグ
 
 /* 今のモード（ベスト更新に使う） */
 let currentMode = "up";
+
+/* ★ 今フォーカスしている入力（カーソル位置） */
+let lastFocusedInput = null;
 
 function makeNums(mode){
   if(mode === "up") return ASC.slice();
@@ -705,6 +758,75 @@ function handleKeyNav(e){
   focusByRC(r, c);
 }
 
+/* ===== こたえを見る（今のマスだけ） ===== */
+let peekHolding = false;
+let peekSaved = { inp:null, value:"", readOnly:false, cell:null };
+
+function hasGrid(){
+  return document.querySelectorAll(".cell").length === SIZE*SIZE;
+}
+function getIndexFromInput(inp){
+  const cell = inp?.closest(".cell");
+  if(!cell) return -1;
+  const r = Number(cell.dataset.r);
+  const c = Number(cell.dataset.c);
+  if(!Number.isFinite(r) || !Number.isFinite(c)) return -1;
+  return r*SIZE + c;
+}
+function startPeek(){
+  if(peekHolding) return;
+  if(!hasGrid()) return;
+
+  let inp = lastFocusedInput;
+  if(!inp || !inp.classList.contains("masuInput")){
+    // フォーカスが無い時は左上へ
+    focusByRC(0,0);
+    inp = lastFocusedInput;
+    if(!inp) return;
+  }
+
+  const cell = inp.closest(".cell");
+  if(!cell) return;
+
+  const r = Number(cell.dataset.r);
+  const c = Number(cell.dataset.c);
+  const expected = answers?.[r]?.[c];
+  if(!Number.isFinite(expected)) return;
+
+  // 使用フラグ（このマスは◎にならない）
+  const idx = r*SIZE + c;
+  if(idx >= 0) usedPeek[idx] = true;
+
+  peekHolding = true;
+  peekSaved = { inp, value: inp.value, readOnly: inp.readOnly, cell };
+
+  inp.value = String(expected);
+  inp.readOnly = true;
+  cell.classList.add("revealing");
+}
+function stopPeek(){
+  if(!peekHolding) return;
+  peekHolding = false;
+
+  const { inp, value, readOnly, cell } = peekSaved;
+  if(inp){
+    inp.value = value;
+    inp.readOnly = readOnly;
+  }
+  if(cell) cell.classList.remove("revealing");
+
+  peekSaved = { inp:null, value:"", readOnly:false, cell:null };
+}
+
+const peekBtn = document.getElementById("peekBtn");
+peekBtn.addEventListener("mousedown", (e)=>{ e.preventDefault(); startPeek(); });
+window.addEventListener("mouseup", ()=> stopPeek());
+peekBtn.addEventListener("mouseleave", ()=> stopPeek());
+
+peekBtn.addEventListener("touchstart", (e)=>{ e.preventDefault(); startPeek(); }, {passive:false});
+window.addEventListener("touchend", ()=> stopPeek(), {passive:true});
+window.addEventListener("touchcancel", ()=> stopPeek(), {passive:true});
+
 /* ===== 描画 ===== */
 function render(){
   const wrap = document.getElementById("masuWrap");
@@ -749,6 +871,10 @@ function render(){
 
       const inp = cell.querySelector("input");
 
+      inp.addEventListener("focus", ()=>{
+        lastFocusedInput = inp;
+      });
+
       inp.addEventListener("input",(e)=>{
         const before = e.target.value;
         const after = toHalfWidth(before);
@@ -781,9 +907,6 @@ function render(){
 }
 
 /* ===== 全問正解判定 ===== */
-function hasGrid(){
-  return document.querySelectorAll(".cell").length === SIZE*SIZE;
-}
 function allCorrect(){
   if(!hasGrid()) return false;
   const cells = document.querySelectorAll(".cell");
@@ -832,7 +955,10 @@ function check(){
 
     if(correct){
       solved[idx] = true;
-      if(wrongChecks[idx] === 0){
+
+      // ★「こたえを見る」を使ったら◎にならない
+      const isFirstTry = (wrongChecks[idx] === 0) && !usedPeek[idx];
+      if(isFirstTry){
         cell.classList.add("firstOk"); // ◎
       }else{
         cell.classList.add("lateOk");  // 〇（色違い）
@@ -853,15 +979,25 @@ function check(){
 }
 
 /* ===== 問題作成 ===== */
+function makeNums(mode){
+  if(mode === "up") return ASC.slice();
+  if(mode === "down") return DESC.slice();
+  return shuffle(ASC.slice());
+}
 function make(mode){
   currentMode = mode;
 
   topNums = makeNums(mode);
   leftNums = makeNums(mode);
+
   buildAnswers();
 
   wrongChecks = Array(SIZE*SIZE).fill(0);
   solved = Array(SIZE*SIZE).fill(false);
+  usedPeek = Array(SIZE*SIZE).fill(false); // ★追加
+
+  lastFocusedInput = null;
+  stopPeek();
 
   render();
 
