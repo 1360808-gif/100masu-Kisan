@@ -191,6 +191,14 @@ button:active{ transform: translateY(1px); }
   padding:8px 6px;
   font-size:14px;
   white-space:nowrap;
+
+  /* ★フチを少し目立たせる（こたえを見ると同系統） */
+  border:2px solid rgba(79,70,229,.55);
+  box-shadow: 0 0 0 2px rgba(79,70,229,.10);
+}
+.makeBtns button:hover{
+  border-color: rgba(79,70,229,.75);
+  box-shadow: 0 0 0 3px rgba(79,70,229,.12);
 }
 
 /* ===== タイム表示 ===== */
@@ -981,6 +989,48 @@ function check(){
   maybeStopTimerIfAllCorrect();
 }
 
+/* タイムUI */
+function timerReset(){
+  tStart = null;
+  tStop = null;
+  timerText.textContent = "0.0";
+  timerBox.classList.remove("running");
+  timerHint.textContent = "ボタンでスタート";
+  if(tTick){ clearInterval(tTick); tTick = null; }
+}
+function timerStart(){
+  if(!timingEnabled) return;
+  tStart = performance.now();
+  tStop = null;
+  timerBox.classList.add("running");
+  timerHint.textContent = "ぜんぶ せいかい でストップ！";
+  if(tTick) clearInterval(tTick);
+  tTick = setInterval(()=>{
+    if(tStart==null || tStop!=null) return;
+    const sec = (performance.now() - tStart)/1000;
+    timerText.textContent = fmtTime(sec);
+  }, 100);
+}
+function timerStop(){
+  if(!timingEnabled) return;
+  if(tStart==null || tStop!=null) return;
+
+  tStop = performance.now();
+  const sec = (tStop - tStart) / 1000;
+
+  timerText.textContent = fmtTime(sec);
+  timerBox.classList.remove("running");
+  timerHint.textContent = "🎉 おわり！もういちど は作成ボタン";
+  if(tTick){ clearInterval(tTick); tTick = null; }
+
+  tryUpdateBest(currentMode, sec);
+}
+function setTimingUI(){
+  timingEnabled = timingToggle.checked;
+  timerReset();
+  timerInline.classList.toggle("timerOff", !timingEnabled);
+}
+
 /* 問題作成 */
 function make(mode){
   currentMode = mode;
@@ -1007,6 +1057,7 @@ document.getElementById("makeUpBtn").addEventListener("click", ()=>make("up"));
 document.getElementById("makeDownBtn").addEventListener("click", ()=>make("down"));
 document.getElementById("makeRandBtn").addEventListener("click", ()=>make("rand"));
 document.getElementById("checkBtn").addEventListener("click", check);
+timingToggle.addEventListener("change", setTimingUI);
 
 /* 初期化 */
 showAllBests();
