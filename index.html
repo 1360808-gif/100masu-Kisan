@@ -329,12 +329,8 @@ th.corner{
 .cell.lateOk input{ color:#1e3a8a; }
 
 /* ★ こたえ表示中 */
-.cell.revealing{
-  background:#f8fafc;
-}
-.cell.revealing input{
-  color:#111827;
-}
+.cell.revealing{ background:#f8fafc; }
+.cell.revealing input{ color:#111827; }
 
 /* ◎（正円） */
 .cell.firstOk::before,
@@ -406,12 +402,12 @@ th.corner{
     <!-- 左カラム：81ます -->
     <div class="panel">
 
-      <!-- ★ここ：問題の左上に「こたえを見る」 -->
+      <!-- ★問題の左上：こたえを見る（長押し0.3秒） -->
       <div class="leftTopRow">
-        <button id="peekBtn" class="peekBtn" type="button" title="カーソルがあるマスだけ こたえを表示（押している間だけ）">
+        <button id="peekBtn" class="peekBtn" type="button" title="カーソルがあるマスだけ こたえを表示（0.3秒長押し）">
           <span>こたえを見る</span>
         </button>
-        <div class="leftHint">※ いまのマスだけ（押している間）</div>
+        <div class="leftHint">※ 0.3秒 長押し（いまのマスだけ）</div>
       </div>
 
       <div class="masuWrap" id="masuWrap">
@@ -502,6 +498,7 @@ th.corner{
           <div style="width:100%;">
             <div class="errBar" id="errBar">エラー：</div>
             <div class="note" style="margin-top:10px;">
+              ・「こたえを見る」は 0.3秒 長押しで表示（カーソルのあるマスだけ）<br>
               ・60秒を超えたら「○分 ○秒」で表示<br>
               ・入力したら自動で次のマスへ（正解の桁数ぶん入力されたら移動）<br>
               ・こたえあわせで、1発正解は◎、2回目以降正解は〇（色も変化）<br>
@@ -663,12 +660,12 @@ let answers = [];
 /* こたえあわせ回数管理 */
 let wrongChecks = [];
 let solved = [];
-let usedPeek = [];   // ★「こたえを見る」使用フラグ
+let usedPeek = [];   // 「こたえを見る」使用フラグ
 
 /* 今のモード（ベスト更新に使う） */
 let currentMode = "up";
 
-/* ★ 今フォーカスしている入力（カーソル位置） */
+/* 今フォーカスしている入力（カーソル位置） */
 let lastFocusedInput = null;
 
 function makeNums(mode){
@@ -718,7 +715,7 @@ function maybeAutoAdvanceByExpectedLen(inp){
   const expected = answers[r]?.[c];
   if(!Number.isFinite(expected)) return;
 
-  const needLen = String(expected).length; // 1桁 or 2桁
+  const needLen = String(expected).length;
   const nowLen = inp.value.trim().length;
 
   if(nowLen >= needLen){
@@ -758,28 +755,22 @@ function handleKeyNav(e){
   focusByRC(r, c);
 }
 
-/* ===== こたえを見る（今のマスだけ） ===== */
+/* ===== こたえを見る（長押し0.3秒） ===== */
+const LONG_PRESS_MS = 300;
 let peekHolding = false;
 let peekSaved = { inp:null, value:"", readOnly:false, cell:null };
+let peekPressing = false;
+let peekTimer = null;
 
 function hasGrid(){
   return document.querySelectorAll(".cell").length === SIZE*SIZE;
 }
-function getIndexFromInput(inp){
-  const cell = inp?.closest(".cell");
-  if(!cell) return -1;
-  const r = Number(cell.dataset.r);
-  const c = Number(cell.dataset.c);
-  if(!Number.isFinite(r) || !Number.isFinite(c)) return -1;
-  return r*SIZE + c;
-}
-function startPeek(){
+function startPeekNow(){
   if(peekHolding) return;
   if(!hasGrid()) return;
 
   let inp = lastFocusedInput;
   if(!inp || !inp.classList.contains("masuInput")){
-    // フォーカスが無い時は左上へ
     focusByRC(0,0);
     inp = lastFocusedInput;
     if(!inp) return;
@@ -793,7 +784,6 @@ function startPeek(){
   const expected = answers?.[r]?.[c];
   if(!Number.isFinite(expected)) return;
 
-  // 使用フラグ（このマスは◎にならない）
   const idx = r*SIZE + c;
   if(idx >= 0) usedPeek[idx] = true;
 
@@ -805,6 +795,9 @@ function startPeek(){
   cell.classList.add("revealing");
 }
 function stopPeek(){
+  if(peekTimer){ clearTimeout(peekTimer); peekTimer = null; }
+  peekPressing = false;
+
   if(!peekHolding) return;
   peekHolding = false;
 
@@ -817,15 +810,29 @@ function stopPeek(){
 
   peekSaved = { inp:null, value:"", readOnly:false, cell:null };
 }
+function pressPeek(e){
+  e.preventDefault();
+  if(peekPressing) return;
+  peekPressing = true;
+
+  peekTimer = setTimeout(()=>{
+    peekTimer = null;
+    if(peekPressing) startPeekNow();
+  }, LONG_PRESS_MS);
+}
+function releasePeek(e){
+  e?.preventDefault?.();
+  stopPeek();
+}
 
 const peekBtn = document.getElementById("peekBtn");
-peekBtn.addEventListener("mousedown", (e)=>{ e.preventDefault(); startPeek(); });
-window.addEventListener("mouseup", ()=> stopPeek());
-peekBtn.addEventListener("mouseleave", ()=> stopPeek());
+peekBtn.addEventListener("mousedown", pressPeek);
+window.addEventListener("mouseup", releasePeek);
+peekBtn.addEventListener("mouseleave", releasePeek);
 
-peekBtn.addEventListener("touchstart", (e)=>{ e.preventDefault(); startPeek(); }, {passive:false});
-window.addEventListener("touchend", ()=> stopPeek(), {passive:true});
-window.addEventListener("touchcancel", ()=> stopPeek(), {passive:true});
+peekBtn.addEventListener("touchstart", pressPeek, {passive:false});
+window.addEventListener("touchend", releasePeek, {passive:false});
+window.addEventListener("touchcancel", releasePeek, {passive:false});
 
 /* ===== 描画 ===== */
 function render(){
@@ -956,12 +963,11 @@ function check(){
     if(correct){
       solved[idx] = true;
 
-      // ★「こたえを見る」を使ったら◎にならない
       const isFirstTry = (wrongChecks[idx] === 0) && !usedPeek[idx];
       if(isFirstTry){
         cell.classList.add("firstOk"); // ◎
       }else{
-        cell.classList.add("lateOk");  // 〇（色違い）
+        cell.classList.add("lateOk");  // 〇
       }
       okCount++;
     }else{
@@ -979,22 +985,16 @@ function check(){
 }
 
 /* ===== 問題作成 ===== */
-function makeNums(mode){
-  if(mode === "up") return ASC.slice();
-  if(mode === "down") return DESC.slice();
-  return shuffle(ASC.slice());
-}
 function make(mode){
   currentMode = mode;
 
   topNums = makeNums(mode);
   leftNums = makeNums(mode);
-
   buildAnswers();
 
   wrongChecks = Array(SIZE*SIZE).fill(0);
   solved = Array(SIZE*SIZE).fill(false);
-  usedPeek = Array(SIZE*SIZE).fill(false); // ★追加
+  usedPeek = Array(SIZE*SIZE).fill(false);
 
   lastFocusedInput = null;
   stopPeek();
